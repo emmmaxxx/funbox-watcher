@@ -313,12 +313,34 @@ def main():
         print(f"HTTP 狀態碼: {resp.status_code}")
         print(f"最終網址（如果被重新導向會跟原網址不同）: {resp.url}")
         print(f"回應內容長度: {len(resp.text)} 字元")
-        print(f"內容是否包含 'NT$': {'NT$' in resp.text}")
-        print(f"內容是否包含 '戰鬥陀螺': {'戰鬥陀螺' in resp.text}")
-        print(f"內容是否包含 '加入購物車': {'加入購物車' in resp.text}")
-        print("---- 原始 HTML 前 3000 字元 ----")
-        print(resp.text[:3000])
-        print("---- 原始 HTML 結束 ----")
+        print(f"【原始 HTML】是否包含 'NT$': {'NT$' in resp.text}")
+        print(f"【原始 HTML】是否包含 '戰鬥陀螺': {'戰鬥陀螺' in resp.text}")
+        print(f"【原始 HTML】是否包含 '加入購物車': {'加入購物車' in resp.text}")
+
+        print("\n---- 套用正式解析流程後（移除 script/style 後的純文字）----")
+        processed_text = fetch_text_requests()
+        print(f"處理後文字長度: {len(processed_text)} 字元")
+        has_nt = "NT$" in processed_text
+        print(f"【處理後文字】是否包含 'NT$': {has_nt}")
+
+        if has_nt:
+            idx = processed_text.find("NT$")
+            print("---- 'NT$' 第一次出現的前後文字（前後各300字）----")
+            print(processed_text[max(0, idx - 300): idx + 300])
+        else:
+            print(
+                "處理後的文字完全沒有 'NT$' 了！代表價格資料應該是藏在 <script> 標籤裡的"
+                "JSON/設定資料中，而不是畫面上的可見文字，移除 script 標籤時被一起清掉了。"
+                "這種情況需要改用『瀏覽器渲染』(Playwright) 的方式抓取，而不是現在的 requests 方式。"
+            )
+
+        products = parse_products(processed_text)
+        print(f"\n套用 parse_products() 解析後，找到 {len(products)} 個商品：")
+        for name, price in products[:15]:
+            print(f"   - {name}：NT${price}")
+
+        print("\n---- 原始 HTML 前 2000 字元（給你參考） ----")
+        print(resp.text[:2000])
         return
 
     if args.notify_test:
