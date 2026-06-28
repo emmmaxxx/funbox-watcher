@@ -289,6 +289,11 @@ def check_once(send_notify=True):
 def main():
     parser = argparse.ArgumentParser(description="Funbox 戰鬥陀螺新品監控")
     parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="印出抓到的原始網頁內容跟HTTP狀態，協助診斷為什麼抓不到商品",
+    )
+    parser.add_argument(
         "--notify-test",
         action="store_true",
         dest="notify_test",
@@ -301,6 +306,20 @@ def main():
         "--once", action="store_true", help="只執行一次，有變化就發通知，然後結束（適合雲端排程）"
     )
     args = parser.parse_args()
+
+    if args.debug:
+        print(f"[{now()}] === Debug 模式：印出原始抓取內容，協助診斷 ===")
+        resp = requests.get(TARGET_URL, headers=HEADERS, timeout=15)
+        print(f"HTTP 狀態碼: {resp.status_code}")
+        print(f"最終網址（如果被重新導向會跟原網址不同）: {resp.url}")
+        print(f"回應內容長度: {len(resp.text)} 字元")
+        print(f"內容是否包含 'NT$': {'NT$' in resp.text}")
+        print(f"內容是否包含 '戰鬥陀螺': {'戰鬥陀螺' in resp.text}")
+        print(f"內容是否包含 '加入購物車': {'加入購物車' in resp.text}")
+        print("---- 原始 HTML 前 3000 字元 ----")
+        print(resp.text[:3000])
+        print("---- 原始 HTML 結束 ----")
+        return
 
     if args.notify_test:
         print(f"[{now()}] === 通知測試模式：直接發送測試訊息，不抓取網頁 ===")
