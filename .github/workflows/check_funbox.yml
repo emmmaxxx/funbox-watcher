@@ -32,7 +32,10 @@ jobs:
           python-version: "3.11"
 
       - name: 安裝套件
-        run: pip install requests beautifulsoup4
+        run: pip install requests beautifulsoup4 playwright
+
+      - name: 安裝 Playwright 瀏覽器（含系統相依套件）
+        run: playwright install --with-deps chromium
 
       - name: 執行檢查
         env:
