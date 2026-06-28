@@ -13,19 +13,18 @@ Funbox 戰鬥陀螺新品 / 開賣 監控腳本
    就會發送通知。
 
 安裝需求（在終端機執行）：
-    pip install requests beautifulsoup4
-
-【重要】如果跑起來抓不到任何商品（看到「沒有找到 NT$」的警告），
-代表這個網站的商品列表是用 JavaScript 動態載入的，
-請改用瀏覽器渲染模式，另外安裝：
-    pip install playwright
+    pip install requests beautifulsoup4 playwright
     playwright install chromium
-然後把下面的 USE_BROWSER_RENDERING 改成 True。
 
-這個腳本可以用三種模式執行（看你要本機長駐執行，還是放在雲端排程）：
-    python funbox_monitor.py --test     測試一次，不發通知，只印出結果（第一次請先用這個）
-    python funbox_monitor.py --once     檢查一次，有變化就發通知，然後結束（適合 GitHub Actions 等雲端排程）
-    python funbox_monitor.py            不加任何參數＝長駐執行，自己每隔一段時間檢查一次（適合放在自己電腦上跑）
+（已確認 shop.funbox.com.tw 的商品清單是用 JavaScript 動態載入的，
+單純用 requests 抓不到內容，所以 Playwright 是必裝的，不是可選的備用方案。）
+
+這個腳本可以用以下模式執行（看你要本機長駐執行，還是放在雲端排程）：
+    python funbox_monitor.py --debug        印出詳細抓取/解析過程，協助診斷問題
+    python funbox_monitor.py --notify-test  只測試通知設定有沒有生效，不抓網頁
+    python funbox_monitor.py --test         測試一次，不發通知，只印出結果（第一次請先用這個）
+    python funbox_monitor.py --once         檢查一次，有變化就發通知，然後結束（適合 GitHub Actions 等雲端排程）
+    python funbox_monitor.py                不加任何參數＝長駐執行，自己每隔一段時間檢查一次（適合放在自己電腦上跑）
 """
 
 import os
@@ -54,8 +53,9 @@ PLACEHOLDER_PRICE_THRESHOLD = 100000
 # 用來記錄上一次抓到的商品狀態，方便比對新舊
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "funbox_state.json")
 
-# 是否改用瀏覽器渲染（Playwright）抓取頁面，預設用較輕量的 requests
-USE_BROWSER_RENDERING = False
+# 是否改用瀏覽器渲染（Playwright）抓取頁面
+# 這個網站的商品清單是用 JavaScript 動態載入的，純 requests 抓不到，所以這裡預設為 True
+USE_BROWSER_RENDERING = True
 
 HEADERS = {
     "User-Agent": (
@@ -114,7 +114,12 @@ def fetch_text_playwright():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(user_agent=HEADERS["User-Agent"], locale="zh-TW")
         page.goto(TARGET_URL, timeout=30000, wait_until="networkidle")
-        page.wait_for_timeout(2000)  # 多等一下，確保動態內容載入完成
+        try:
+            # 等到畫面上真的出現 NT$ 價格文字才繼續，比固定等待時間更可靠
+            page.wait_for_selector("text=NT$", timeout=15000)
+        except Exception:
+            pass  # 等不到也不報錯，繼續往下抓目前畫面上有的內容，讓 debug 模式幫忙判斷原因
+        page.wait_for_timeout(1500)  # 再多等一下，確保所有商品卡片都渲染完成
         text = page.inner_text("body")
         browser.close()
         return text
@@ -317,8 +322,8 @@ def main():
         print(f"【原始 HTML】是否包含 '戰鬥陀螺': {'戰鬥陀螺' in resp.text}")
         print(f"【原始 HTML】是否包含 '加入購物車': {'加入購物車' in resp.text}")
 
-        print("\n---- 套用正式解析流程後（移除 script/style 後的純文字）----")
-        processed_text = fetch_text_requests()
+        print(f"\n---- 套用正式解析流程後（目前 USE_BROWSER_RENDERING = {USE_BROWSER_RENDERING}）----")
+        processed_text = fetch_text()
         print(f"處理後文字長度: {len(processed_text)} 字元")
         has_nt = "NT$" in processed_text
         print(f"【處理後文字】是否包含 'NT$': {has_nt}")
