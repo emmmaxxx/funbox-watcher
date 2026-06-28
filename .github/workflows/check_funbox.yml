@@ -19,6 +19,10 @@ on:
 permissions:
   contents: write            # 需要這個權限才能把最新的 funbox_state.json 存回 repo
 
+concurrency:
+  group: funbox-monitor      # 同一時間只允許一個執行，其他會自動排隊等待，避免同時 push 互相衝突
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
