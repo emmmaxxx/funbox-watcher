@@ -6,11 +6,10 @@ Funbox 戰鬥陀螺新品 / 開賣 監控腳本
 功能：
 1. 定期抓取 https://shop.funbox.com.tw/categories/XI/KB
 2. 解析頁面上每個商品的「名稱」與「價格」
-3. 跟上一次抓到的結果比較，當發現：
-   - 出現「全新的商品」(之前沒見過的名稱)，或
-   - 原本顯示異常高價（如 NT$999999，代表尚未開賣）的商品，
-     價格變成正常數字（代表開賣了）
-   就會發送通知。
+3. 跟上一次抓到的結果比較，只有當商品價格是「正常數字」（< NT$100000）時才會通知，包含兩種情況：
+   - 全新出現的商品，而且一開始就是正常價格（代表新商品直接上架開賣）
+   - 原本是異常高價（如 NT$999999，代表尚未開賣）的商品，價格變成正常數字（代表開賣了）
+   如果商品還是顯示佔位價格（不管是不是第一次看到），只會默默記錄，不會發通知。
 
 安裝需求（在終端機執行）：
     pip install requests beautifulsoup4 playwright
@@ -263,19 +262,19 @@ def check_once(send_notify=True):
         new_state[name] = price
         old_price = old_state.get(name)
 
+        if price >= PLACEHOLDER_PRICE_THRESHOLD:
+            # 還是佔位價格，不管是不是第一次看到，都先默默記錄，不發通知
+            continue
+
         if old_price is None:
-            # 全新出現的商品
-            if price < PLACEHOLDER_PRICE_THRESHOLD:
-                alerts.append(f"🆕 新商品上架！\n{name}\n價格：NT${price}")
-            else:
-                alerts.append(
-                    f"👀 偵測到新的商品頁面（目前顯示 NT${price}，可能尚未開賣）：\n{name}"
-                )
-        elif old_price >= PLACEHOLDER_PRICE_THRESHOLD and price < PLACEHOLDER_PRICE_THRESHOLD:
-            # 原本是佔位價格，現在變成正常價格 -> 開賣了
+            # 第一次出現，而且價格就已經是正常價格 -> 真的是新商品上架
+            alerts.append(f"🆕 新商品上架！\n{name}\n價格：NT${price}")
+        elif old_price >= PLACEHOLDER_PRICE_THRESHOLD:
+            # 之前是佔位價格，現在變成正常價格 -> 開賣了
             alerts.append(
                 f"🎉 商品開賣了！\n{name}\n現在價格：NT${price}（原本顯示 NT${old_price}）"
             )
+        # 其餘情況（價格沒變化）不通知
 
     save_state(new_state)
 
