@@ -79,7 +79,7 @@ EMAIL_CONFIG = {
 }
 
 # ntfy.sh：完全免費、不用註冊帳號，手機裝 ntfy app 訂閱同一個 topic 名稱即可收到推播
-NTFY_TOPIC = "your-unique-funbox-topic-name"  # 自己取一個夠獨特的名字，避免被別人猜到
+NTFY_TOPIC = "funboxgivemetolow"  # 自己取一個夠獨特的名字，避免被別人猜到
 
 # Telegram Bot：跟 @BotFather 對話建立 bot 拿到 token，
 # 再跟你的 bot 對話一次，用 https://api.telegram.org/bot<token>/getUpdates 拿到 chat_id
