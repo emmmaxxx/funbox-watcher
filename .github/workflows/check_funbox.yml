@@ -1,0 +1,35 @@
+name: Funbox 戰鬥陀螺監控
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # 每 10 分鐘觸發一次（GitHub 實際執行時間可能會有幾分鐘誤差）
+  workflow_dispatch: {}       # 讓你可以在 Actions 頁面手動按按鈕，立刻測試一次
+
+permissions:
+  contents: write            # 需要這個權限才能把最新的 funbox_state.json 存回 repo
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安裝套件
+        run: pip install requests beautifulsoup4
+
+      - name: 執行檢查（單次模式）
+        run: python funbox_monitor.py --once
+
+      - name: 把最新商品狀態存回 repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add funbox_state.json
+          git diff --staged --quiet || git commit -m "更新商品狀態 [skip ci]"
+          git push
